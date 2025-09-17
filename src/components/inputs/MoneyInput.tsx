@@ -1,9 +1,9 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
-import { parseAmount, formatAmountInput } from '@/lib/calc'
-import { cn } from '@/lib/utils'
+import React, {useEffect, useState} from 'react'
+import {Input} from '@/components/ui/input'
+import {formatAmountInput, parseAmount} from '@/lib/calc'
+import {cn} from '@/lib/utils'
 
 interface MoneyInputProps {
   value: number
@@ -37,21 +37,10 @@ export function MoneyInput({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value
     setDisplayValue(inputValue)
-    
+
     // 实时解析并更新数值
     const numericValue = parseAmount(inputValue)
     onChange(numericValue)
-  }
-
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    const pastedText = e.clipboardData.getData('text')
-    const numericValue = parseAmount(pastedText)
-    
-    if (numericValue > 0) {
-      setDisplayValue(formatAmountInput(numericValue))
-      onChange(numericValue)
-    }
   }
 
   const handleFocus = () => {
@@ -69,32 +58,36 @@ export function MoneyInput({
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.ctrlKey || e.metaKey) {
+      return
+    }
+
     // 允许数字、小数点、删除键、方向键等
     const allowedKeys = [
       'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
       'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
       'Home', 'End'
     ]
-    
+
     if (allowedKeys.includes(e.key)) {
       return
     }
-    
+
     // 允许数字
     if (e.key >= '0' && e.key <= '9') {
       return
     }
-    
+
     // 允许小数点（但只能有一个）
     if (e.key === '.' && !displayValue.includes('.')) {
       return
     }
-    
+
     // 允许中文数字单位
     if (['万', '千'].includes(e.key)) {
       return
     }
-    
+
     // 阻止其他输入
     e.preventDefault()
   }
@@ -114,7 +107,6 @@ export function MoneyInput({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
