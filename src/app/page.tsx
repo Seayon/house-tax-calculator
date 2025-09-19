@@ -39,6 +39,17 @@ type PersistedState = {
   activeRecordId?: string
 }
 
+const ensureSellerInputDefaults = (input: SellerInput): SellerInput => ({
+  ...input,
+  vatGuidePrice: input.vatGuidePrice > 0 ? input.vatGuidePrice : input.salePrice,
+  paidLoanInterest: input.paidLoanInterest !== undefined ? input.paidLoanInterest : 0
+})
+
+const ensureBuyerInputDefaults = (input: BuyerInput): BuyerInput => ({
+  ...input,
+  assessedPrice: input.assessedPrice > 0 ? input.assessedPrice : input.salePrice
+})
+
 export default function HomePage() {
   // 城市配置
   const [selectedCity, setSelectedCity] = useState<CityPolicy>(DEFAULT_CITY)
@@ -55,6 +66,7 @@ export default function HomePage() {
   // 卖方输入
   const [sellerInput, setSellerInput] = useState<SellerInput>({
     salePrice: 3000000,
+    vatGuidePrice: 3000000,
     originalPurchasePrice: 2000000,
     originalDeedTaxRate: 0.015,
     isOverTwoYears: true,
@@ -76,6 +88,7 @@ export default function HomePage() {
   // 买方输入
   const [buyerInput, setBuyerInput] = useState<BuyerInput>({
     salePrice: 3000000,
+    assessedPrice: 3000000,
     deedTaxRate: 0.01,
     buyerAgentRate: 0.01,
     buyerLoanFees: 0
@@ -102,10 +115,10 @@ export default function HomePage() {
           setSelectedCity(getCityByName(parsed.cityName))
         }
         if (parsed.sellerInput) {
-          setSellerInput(prev => ({ ...prev, ...parsed.sellerInput }))
+          setSellerInput(prev => ensureSellerInputDefaults({ ...prev, ...parsed.sellerInput }))
         }
         if (parsed.buyerInput) {
-          setBuyerInput(prev => ({ ...prev, ...parsed.buyerInput }))
+          setBuyerInput(prev => ensureBuyerInputDefaults({ ...prev, ...parsed.buyerInput }))
         }
         if (parsed.activeRecordId) {
           setActiveRecordId(parsed.activeRecordId)
@@ -118,7 +131,11 @@ export default function HomePage() {
     try {
       const storedRecords = localStorage.getItem(SAVED_RECORDS_STORAGE_KEY)
       if (storedRecords) {
-        const parsedRecords: SavedRecord[] = JSON.parse(storedRecords)
+        const parsedRecords: SavedRecord[] = JSON.parse(storedRecords).map(record => ({
+          ...record,
+          sellerInput: ensureSellerInputDefaults(record.sellerInput),
+          buyerInput: ensureBuyerInputDefaults(record.buyerInput)
+        }))
         setSavedRecords(parsedRecords)
       }
     } catch (error) {
@@ -178,10 +195,15 @@ export default function HomePage() {
 
   // 同步成交价
   useEffect(() => {
-    setBuyerInput(prev => ({
-      ...prev,
-      salePrice: sellerInput.salePrice
-    }))
+    setBuyerInput(prev => {
+      const nextSalePrice = sellerInput.salePrice
+      const shouldSyncAssessedPrice = prev.assessedPrice === prev.salePrice
+      return {
+        ...prev,
+        salePrice: nextSalePrice,
+        assessedPrice: shouldSyncAssessedPrice ? nextSalePrice : prev.assessedPrice
+      }
+    })
   }, [sellerInput.salePrice])
 
   // 计算结果
@@ -240,6 +262,7 @@ export default function HomePage() {
     setActiveRecordId(null)
     setSellerInput({
       salePrice: 0,
+      vatGuidePrice: 0,
       originalPurchasePrice: 0,
       originalDeedTaxRate: 0.015,
       isOverTwoYears: true,
@@ -259,6 +282,7 @@ export default function HomePage() {
     })
     setBuyerInput({
       salePrice: 0,
+      assessedPrice: 0,
       deedTaxRate: 0.01,
       buyerAgentRate: 0.01,
       buyerLoanFees: 0
@@ -322,8 +346,8 @@ export default function HomePage() {
       createdAt: Date.now(),
       cityName: selectedCity.name,
       surchargeDiscount,
-      sellerInput: { ...sellerInput },
-      buyerInput: { ...buyerInput }
+      sellerInput: ensureSellerInputDefaults({ ...sellerInput }),
+      buyerInput: ensureBuyerInputDefaults({ ...buyerInput })
     }
 
     setSavedRecords(prev => [record, ...prev])
@@ -334,8 +358,8 @@ export default function HomePage() {
     skipInitialCitySync.current = true
     setSelectedCity(getCityByName(record.cityName))
     setSurchargeDiscount(record.surchargeDiscount)
-    setSellerInput({ ...record.sellerInput })
-    setBuyerInput({ ...record.buyerInput })
+    setSellerInput(ensureSellerInputDefaults({ ...record.sellerInput }))
+    setBuyerInput(ensureBuyerInputDefaults({ ...record.buyerInput }))
     setActiveRecordId(record.id)
   }
 
@@ -388,8 +412,26 @@ export default function HomePage() {
                 <MoneyInput
                   label="成交价"
                   value={sellerInput.salePrice}
-                  onChange={(value) => setSellerInput(prev => ({ ...prev, salePrice: value }))}
+                  onChange={(value) => setSellerInput(prev => {
+                    const shouldSyncGuidePrice = prev.vatGuidePrice === prev.salePrice
+                    const next = {
+                      ...prev,
+                      salePrice: value,
+                      vatGuidePrice: shouldSyncGuidePrice ? value : prev.vatGuidePrice
+                    }
+                    return ensureSellerInputDefaults(next)
+                  })}
                   placeholder="请输入成交价"
+                />
+
+                <MoneyInput
+                  label="增值税计税价（指导价）"
+                  value={sellerInput.vatGuidePrice}
+                  onChange={(value) => setSellerInput(prev => ({
+                    ...prev,
+                    vatGuidePrice: value
+                  }))}
+                  placeholder="默认与成交价一致，可根据指导价调整"
                 />
 
                 <MoneyInput
@@ -477,12 +519,6 @@ export default function HomePage() {
                       onChange={(value) => setSellerInput(prev => ({ ...prev, allowedDeductibles: value }))}
                       placeholder="装修费、评估费等"
                     />
-                    <MoneyInput
-                      label="已还贷款利息"
-                      value={sellerInput.paidLoanInterest}
-                      onChange={(value) => setSellerInput(prev => ({ ...prev, paidLoanInterest: value }))}
-                      placeholder="历史已还的贷款利息总额"
-                    />
                     <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
                       <p>差额20%计算公式：(成交价 - 原购房价 - 原契税 - 可扣除成本 - 已还贷款利息) × 20%</p>
                     </div>
@@ -535,6 +571,13 @@ export default function HomePage() {
                 )}
 
                 <MoneyInput
+                  label="截止目前已付利息"
+                  value={sellerInput.paidLoanInterest}
+                  onChange={(value) => setSellerInput(prev => ({ ...prev, paidLoanInterest: value }))}
+                  placeholder="用于计算实际盈亏，可选填写"
+                />
+
+                <MoneyInput
                   label="其他费用"
                   value={sellerInput.otherSellerFees}
                   onChange={(value) => setSellerInput(prev => ({ ...prev, otherSellerFees: value }))}
@@ -557,6 +600,16 @@ export default function HomePage() {
                   onChange={(value) => setBuyerInput(prev => ({ ...prev, salePrice: value }))}
                   placeholder="与卖方成交价一致"
                   disabled
+                />
+
+                <MoneyInput
+                  label="契税评估价"
+                  value={buyerInput.assessedPrice}
+                  onChange={(value) => setBuyerInput(prev => ({
+                    ...prev,
+                    assessedPrice: value
+                  }))}
+                  placeholder="用于契税计算，默认与成交价一致"
                 />
 
                 <div className="space-y-2">
@@ -702,11 +755,13 @@ export default function HomePage() {
         <SellerSummary
           result={sellerResult}
           salePrice={sellerInput.salePrice}
+          originalPurchasePrice={sellerInput.originalPurchasePrice}
         />
 
         <BuyerSummary
           result={buyerResult}
           salePrice={buyerInput.salePrice}
+          assessedPrice={buyerInput.assessedPrice}
         />
 
         <Breakdown

@@ -4,6 +4,7 @@ export type PitMode = 'exempt' | 'assessed1' | 'diff20'
 // 卖方输入参数
 export interface SellerInput {
   salePrice: number                    // 成交价
+  vatGuidePrice: number               // 增值税计税价（指导价）
   originalPurchasePrice: number        // 原购房总价
   originalDeedTaxRate: number          // 原购房契税税率
   isOverTwoYears: boolean             // 是否满2年
@@ -25,6 +26,7 @@ export interface SellerInput {
 // 买方输入参数
 export interface BuyerInput {
   salePrice: number                   // 成交价
+  assessedPrice: number               // 契税评估价
   deedTaxRate: number                 // 买方契税税率
   buyerAgentRate: number              // 买方中介费率
   buyerLoanFees: number               // 买方贷款费用
@@ -40,7 +42,8 @@ export interface SellerResult {
   sellerAgentFee: number              // 卖方中介费
   bridgeFee: number                   // 过桥费
   sellerTaxesAndFees: number          // 卖方税费合计
-  difference: number                  // 历史差价（含原契税成本）
+  paidLoanInterest: number            // 已付贷款利息
+  difference: number                  // 历史差价（含原契税和利息成本）
   netProfitBeforeLoan: number         // 本次交易盈亏（不考虑贷款）
   netCashAfterLoan: number            // 预计还清贷款后到手净额
 }

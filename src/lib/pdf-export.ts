@@ -92,7 +92,9 @@ function generateReportHTML(data: ExportData): string {
   const { sellerInput, buyerInput, sellerResult, buyerResult, city, timestamp } = data
   
   const isExempt = sellerInput.isOverFiveYears && sellerInput.onlyHome
-  const vatBase = sellerInput.isOverTwoYears ? 0 : sellerInput.salePrice / (1 + sellerInput.vatRate)
+  const vatTaxPrice = sellerInput.vatGuidePrice > 0 ? sellerInput.vatGuidePrice : sellerInput.salePrice
+  const vatBase = sellerInput.isOverTwoYears ? 0 : vatTaxPrice / (1 + sellerInput.vatRate)
+  const deedTaxBase = buyerInput.assessedPrice > 0 ? buyerInput.assessedPrice : buyerInput.salePrice
 
   return `
     <div style="max-width: 100%; margin: 0 auto;">
@@ -147,6 +149,12 @@ function generateReportHTML(data: ExportData): string {
           <h3 style="font-size: 14px; margin-bottom: 10px; color: #374151;">税费明细</h3>
           <table style="width: 100%; border-collapse: collapse;">
             <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 0; color: #666;">原购房总价</td>
+              <td style="padding: 8px 0; text-align: right;">
+                ${formatCurrency(sellerInput.originalPurchasePrice)}
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
               <td style="padding: 8px 0; color: #666;">增值税及附加</td>
               <td style="padding: 8px 0; text-align: right; color: ${sellerResult.vatTotal > 0 ? '#dc2626' : '#059669'};">
                 ${sellerResult.vatTotal > 0 ? formatCurrency(sellerResult.vatTotal) : '免征'}
@@ -169,6 +177,14 @@ function generateReportHTML(data: ExportData): string {
               <td style="padding: 8px 0; color: #666;">过桥费</td>
               <td style="padding: 8px 0; text-align: right; color: #dc2626;">
                 ${formatCurrency(sellerResult.bridgeFee)}
+              </td>
+            </tr>
+            ` : ''}
+            ${sellerResult.paidLoanInterest > 0 ? `
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 0; color: #666;">已付利息（历史成本）</td>
+              <td style="padding: 8px 0; text-align: right; color: #dc2626;">
+                ${formatCurrency(sellerResult.paidLoanInterest)}
               </td>
             </tr>
             ` : ''}
@@ -202,6 +218,12 @@ function generateReportHTML(data: ExportData): string {
               <td style="padding: 8px 0; color: #666;">成交价</td>
               <td style="padding: 8px 0; text-align: right;">
                 ${formatCurrency(buyerInput.salePrice)}
+              </td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+              <td style="padding: 8px 0; color: #666;">契税评估价</td>
+              <td style="padding: 8px 0; text-align: right;">
+                ${formatCurrency(deedTaxBase)}
               </td>
             </tr>
             <tr style="border-bottom: 1px solid #e5e7eb;">
@@ -241,7 +263,7 @@ function generateReportHTML(data: ExportData): string {
         <h2 style="font-size: 16px; color: #1f2937; margin-bottom: 15px; border-left: 4px solid #f59e0b; padding-left: 10px;">计算说明</h2>
         <div style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 15px;">
           <div style="font-size: 12px; line-height: 1.6; color: #92400e;">
-            <p style="margin: 0 0 8px 0;"><strong>增值税计算:</strong> ${sellerInput.isOverTwoYears ? '满2年免征' : `不含税价格 ${formatCurrency(vatBase)} × 5% = ${formatCurrency(sellerResult.vat)}`}</p>
+            <p style="margin: 0 0 8px 0;"><strong>增值税计算:</strong> ${sellerInput.isOverTwoYears ? '满2年免征' : `计税价 ${formatCurrency(vatTaxPrice)} ÷ (1 + ${formatPercent(sellerInput.vatRate)}) = 不含税价格 ${formatCurrency(vatBase)}，再 × ${formatPercent(sellerInput.vatRate)} = ${formatCurrency(sellerResult.vat)}`}</p>
             <p style="margin: 0 0 8px 0;"><strong>附加税计算:</strong> ${sellerResult.vatSurcharge > 0 ? `增值税 ${formatCurrency(sellerResult.vat)} × ${formatPercent(sellerInput.surchargeOnVAT)} = ${formatCurrency(sellerResult.vatSurcharge)}` : '无增值税，无附加税'}</p>
             <p style="margin: 0 0 8px 0;"><strong>个税计算:</strong> ${
               isExempt ? '满五唯一，免征个税' :
@@ -249,7 +271,7 @@ function generateReportHTML(data: ExportData): string {
               sellerInput.pitMode === 'diff20' ? `差额征收 (${formatCurrency(sellerInput.salePrice)} - ${formatCurrency(sellerInput.originalPurchasePrice)} - ${formatCurrency(sellerResult.originalDeedTax)}${sellerInput.allowedDeductibles > 0 ? ` - ${formatCurrency(sellerInput.allowedDeductibles)}` : ''}) × 20% = ${formatCurrency(sellerResult.pit)}` :
               '免征'
             }</p>
-            <p style="margin: 0 0 8px 0;"><strong>契税计算:</strong> ${formatCurrency(buyerInput.salePrice)} × ${formatPercent(buyerInput.deedTaxRate)} = ${formatCurrency(buyerResult.deedTax)}</p>
+            <p style="margin: 0 0 8px 0;"><strong>契税计算:</strong> 契税评估价 ${formatCurrency(deedTaxBase)} × ${formatPercent(buyerInput.deedTaxRate)} = ${formatCurrency(buyerResult.deedTax)}</p>
             ${sellerResult.bridgeFee > 0 ? `<p style="margin: 0 0 8px 0;"><strong>过桥费计算:</strong> ${formatCurrency(sellerInput.remainingLoan)} × ${formatPercent(sellerInput.bridgeMonthlyRate)} × ${sellerInput.bridgeMonths}个月 = ${formatCurrency(sellerResult.bridgeFee)}</p>` : ''}
           </div>
         </div>

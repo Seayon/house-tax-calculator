@@ -10,13 +10,15 @@ import { cn } from '@/lib/utils'
 interface SellerSummaryProps {
   result: SellerResult
   salePrice: number
+  originalPurchasePrice: number
   className?: string
 }
 
-export function SellerSummary({ result, salePrice, className }: SellerSummaryProps) {
+export function SellerSummary({ result, salePrice, originalPurchasePrice, className }: SellerSummaryProps) {
   const isProfit = result.netProfitBeforeLoan > 0
   const profitRate = salePrice > 0 ? (result.netProfitBeforeLoan / salePrice) * 100 : 0
   const taxRate = salePrice > 0 ? (result.sellerTaxesAndFees / salePrice) * 100 : 0
+  const differenceBeforeInterest = result.difference + result.paidLoanInterest
 
   return (
     <Card className={cn("result-card", className)}>
@@ -75,16 +77,47 @@ export function SellerSummary({ result, salePrice, className }: SellerSummaryPro
               <span className="text-gray-600">成交价</span>
               <span className="font-medium">{formatCurrency(salePrice)}</span>
             </div>
-            
             <div className="flex justify-between">
-              <span className="text-gray-600">历史差价</span>
-              <span className={cn(
-                "font-medium",
-                result.difference >= 0 ? "text-green-600" : "text-red-600"
-              )}>
-                {result.difference >= 0 ? '+' : ''}{formatCurrency(result.difference)}
-              </span>
+              <span className="text-gray-600">原购房总价</span>
+              <span>{formatCurrency(originalPurchasePrice)}</span>
             </div>
+            
+            {result.paidLoanInterest > 0 ? (
+              <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">历史差价（未扣利息）</span>
+                  <span className={cn(
+                    "font-medium",
+                    differenceBeforeInterest >= 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    {differenceBeforeInterest >= 0 ? '+' : ''}{formatCurrency(differenceBeforeInterest)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 pl-2">
+                  <span>扣：已付利息</span>
+                  <span className="text-red-600">-{formatCurrency(result.paidLoanInterest)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">扣利息后差价</span>
+                  <span className={cn(
+                    "font-medium",
+                    result.difference >= 0 ? "text-green-600" : "text-red-600"
+                  )}>
+                    {result.difference >= 0 ? '+' : ''}{formatCurrency(result.difference)}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-gray-600">历史差价</span>
+                <span className={cn(
+                  "font-medium",
+                  result.difference >= 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {result.difference >= 0 ? '+' : ''}{formatCurrency(result.difference)}
+                </span>
+              </div>
+            )}
 
             <div className="flex justify-between">
               <span className="text-gray-600">税费合计</span>
@@ -119,6 +152,13 @@ export function SellerSummary({ result, salePrice, className }: SellerSummaryPro
                 </div>
               )}
             </div>
+
+            {result.paidLoanInterest > 0 && (
+              <div className="text-xs text-gray-500 ml-4 flex justify-between mt-1">
+                <span>• 已付利息（历史成本）</span>
+                <span>-{formatCurrency(result.paidLoanInterest)}</span>
+              </div>
+            )}
 
             <div className="border-t pt-2 flex justify-between font-medium">
               <span>净收益（不含贷款）</span>

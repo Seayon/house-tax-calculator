@@ -25,7 +25,10 @@ export function Breakdown({
 }: BreakdownProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
-  const vatBase = sellerInput.isOverTwoYears ? 0 : sellerInput.salePrice / (1 + sellerInput.vatRate)
+  const vatTaxPrice = sellerInput.vatGuidePrice > 0 ? sellerInput.vatGuidePrice : sellerInput.salePrice
+  const vatBase = sellerInput.isOverTwoYears ? 0 : vatTaxPrice / (1 + sellerInput.vatRate)
+  const deedTaxBase = buyerInput.assessedPrice > 0 ? buyerInput.assessedPrice : buyerInput.salePrice
+  const paidLoanInterest = sellerInput.paidLoanInterest || 0
 
   return (
     <Card className={cn("", className)}>
@@ -83,6 +86,10 @@ export function Breakdown({
                       <div className="flex justify-between">
                         <span className="text-gray-600">含税成交价</span>
                         <span>{formatCurrency(sellerInput.salePrice)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">增值税计税价</span>
+                        <span>{formatCurrency(vatTaxPrice)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">不含税价格</span>
@@ -162,9 +169,15 @@ export function Breakdown({
                           <span>-{formatCurrency(sellerInput.allowedDeductibles)}</span>
                         </div>
                       )}
+                      {paidLoanInterest > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">已付利息</span>
+                          <span>-{formatCurrency(paidLoanInterest)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">应税差额</span>
-                        <span>{formatCurrency(Math.max(0, sellerInput.salePrice - sellerInput.originalPurchasePrice - sellerResult.originalDeedTax - sellerInput.allowedDeductibles))}</span>
+                        <span>{formatCurrency(Math.max(0, sellerInput.salePrice - sellerInput.originalPurchasePrice - sellerResult.originalDeedTax - sellerInput.allowedDeductibles - paidLoanInterest))}</span>
                       </div>
                     </>
                   )}
@@ -193,6 +206,12 @@ export function Breakdown({
                     <span className="text-gray-600">中介费</span>
                     <span className="text-red-600">{formatCurrency(sellerResult.sellerAgentFee)}</span>
                   </div>
+                  {paidLoanInterest > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">已付利息</span>
+                      <span className="text-red-600">{formatCurrency(paidLoanInterest)}</span>
+                    </div>
+                  )}
                   {sellerInput.remainingLoan > 0 && (
                     <>
                       <div className="flex justify-between">
@@ -229,6 +248,10 @@ export function Breakdown({
                   <div className="flex justify-between">
                     <span className="text-gray-600">成交价</span>
                     <span>{formatCurrency(buyerInput.salePrice)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">契税评估价</span>
+                    <span>{formatCurrency(deedTaxBase)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">契税税率</span>
@@ -271,11 +294,11 @@ export function Breakdown({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-medium text-blue-800 mb-2">计算公式说明</h4>
             <div className="text-sm text-blue-700 space-y-1">
-              <p>• 增值税 = 不含税价格 × 增值税税率，不含税价格 = 含税成交价 ÷ (1 + 增值税税率)</p>
+              <p>• 增值税 = 不含税价格 × 增值税税率，不含税价格 = 增值税计税价 ÷ (1 + 增值税税率)</p>
               <p>• 附加税 = 增值税 × 附加税系数（通常12%，部分城市减半至6%）</p>
               <p>• 个税核定 = 成交价 × 1%</p>
               <p>• 个税差额 = (成交价 - 原价 - 原契税 - 可扣除成本 - 已还贷款利息) × 20%</p>
-              <p>• 契税 = 成交价 × 契税税率</p>
+              <p>• 契税 = 契税评估价 × 契税税率</p>
               <p>• 过桥费 = 贷款余额 × 月费率 × 使用月数</p>
             </div>
           </div>

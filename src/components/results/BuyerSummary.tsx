@@ -10,12 +10,12 @@ import { cn } from '@/lib/utils'
 interface BuyerSummaryProps {
   result: BuyerResult
   salePrice: number
+  assessedPrice: number
   className?: string
 }
 
-export function BuyerSummary({ result, salePrice, className }: BuyerSummaryProps) {
-  const totalCostRate = salePrice > 0 ? (result.buyerTotal / salePrice) * 100 : 0
-  const taxRate = salePrice > 0 ? (result.deedTax / salePrice) * 100 : 0
+export function BuyerSummary({ result, salePrice, assessedPrice, className }: BuyerSummaryProps) {
+  const taxRate = assessedPrice > 0 ? (result.deedTax / assessedPrice) * 100 : 0
 
   return (
     <Card className={cn("result-card", className)}>
@@ -48,6 +48,10 @@ export function BuyerSummary({ result, salePrice, className }: BuyerSummaryProps
             <div className="flex justify-between">
               <span className="text-gray-600">成交价</span>
               <span className="font-medium">{formatCurrency(salePrice)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">契税评估价</span>
+              <span>{formatCurrency(assessedPrice)}</span>
             </div>
             
             <div className="flex justify-between">
@@ -135,7 +139,7 @@ export function BuyerSummary({ result, salePrice, className }: BuyerSummaryProps
             />
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            契税占成交价比例
+            契税占评估价比例
           </p>
         </div>
 

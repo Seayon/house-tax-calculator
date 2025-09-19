@@ -14,7 +14,8 @@ export function calcSeller(input: SellerInput): SellerResult {
 
   if (!input.isOverTwoYears) {
     // 不满2年需要缴纳增值税
-    const vatBase = input.salePrice / (1 + input.vatRate)
+    const vatTaxPrice = input.vatGuidePrice > 0 ? input.vatGuidePrice : input.salePrice
+    const vatBase = vatTaxPrice / (1 + input.vatRate)
     vat = vatBase * input.vatRate
     vatSurcharge = vat * input.surchargeOnVAT
     vatTotal = vat + vatSurcharge
@@ -54,7 +55,8 @@ export function calcSeller(input: SellerInput): SellerResult {
   const sellerTaxesAndFees = vatTotal + pit + sellerAgentFee + bridgeFee + input.otherSellerFees
 
   // 7. 计算收益指标
-  const difference = input.salePrice - (input.originalPurchasePrice + originalDeedTax)
+  const historicalDifference = input.salePrice - (input.originalPurchasePrice + originalDeedTax)
+  const difference = historicalDifference - input.paidLoanInterest
   const netProfitBeforeLoan = difference - sellerTaxesAndFees
   const netCashAfterLoan = input.salePrice - sellerTaxesAndFees - input.remainingLoan
 
@@ -67,6 +69,7 @@ export function calcSeller(input: SellerInput): SellerResult {
     sellerAgentFee,
     bridgeFee,
     sellerTaxesAndFees,
+    paidLoanInterest: input.paidLoanInterest,
     difference,
     netProfitBeforeLoan,
     netCashAfterLoan
@@ -78,7 +81,8 @@ export function calcSeller(input: SellerInput): SellerResult {
  */
 export function calcBuyer(input: BuyerInput): BuyerResult {
   // 1. 计算买方契税
-  const deedTax = input.salePrice * input.deedTaxRate
+  const deedTaxBase = input.assessedPrice > 0 ? input.assessedPrice : input.salePrice
+  const deedTax = deedTaxBase * input.deedTaxRate
 
   // 2. 计算买方中介费
   const buyerAgentFee = input.salePrice * input.buyerAgentRate
@@ -156,6 +160,10 @@ export function validateSellerInput(input: Partial<SellerInput>): string[] {
     errors.push('原购房总价必须大于0')
   }
 
+  if (!input.vatGuidePrice || input.vatGuidePrice <= 0) {
+    errors.push('增值税计税价必须大于0')
+  }
+
   if (input.originalDeedTaxRate === undefined || input.originalDeedTaxRate < 0 || input.originalDeedTaxRate > 1) {
     errors.push('原购房契税税率必须在0-100%之间')
   }
@@ -188,6 +196,10 @@ export function validateBuyerInput(input: Partial<BuyerInput>): string[] {
 
   if (!input.salePrice || input.salePrice <= 0) {
     errors.push('成交价必须大于0')
+  }
+
+  if (!input.assessedPrice || input.assessedPrice <= 0) {
+    errors.push('评估价必须大于0')
   }
 
   if (input.deedTaxRate === undefined || input.deedTaxRate < 0 || input.deedTaxRate > 1) {
