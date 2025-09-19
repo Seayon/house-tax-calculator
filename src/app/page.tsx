@@ -131,7 +131,7 @@ export default function HomePage() {
     try {
       const storedRecords = localStorage.getItem(SAVED_RECORDS_STORAGE_KEY)
       if (storedRecords) {
-        const parsedRecords: SavedRecord[] = JSON.parse(storedRecords).map(record => ({
+        const parsedRecords: SavedRecord[] = (JSON.parse(storedRecords) as SavedRecord[]).map(record => ({
           ...record,
           sellerInput: ensureSellerInputDefaults(record.sellerInput),
           buyerInput: ensureBuyerInputDefaults(record.buyerInput)
